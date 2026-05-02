@@ -62,31 +62,43 @@ latest name:
     current=$(cd "$pkgdir" && makepkg --printsrcinfo | awk -F ' = ' '/^[[:space:]]*pkgver = / && !v { v=$2 } END { print v }')
     url=$(cd "$pkgdir" && makepkg --printsrcinfo | awk -F ' = ' '/^[[:space:]]*url = / && !u { u=$2 } END { print u }')
 
+    printf '==> %s\n' "{{ name }}"
+    printf 'source:  %s\n' "$url"
+    printf 'current: %s\n' "$current"
+
     if [[ "{{ name }}" == *-git ]]; then
-      output=$(cd "$pkgdir" && makepkg -od --noprepare --force 2>&1)
-      printf '%s\n' "$output"
+      printf 'type:    vcs\n'
+      output=$(cd "$pkgdir" && makepkg -od --noprepare --force 2>&1) || {
+        printf '%s\n' "$output"
+        exit 1
+      }
       updated=$(awk '/^==> Updated version:/ { print $NF }' <<<"$output" | tail -1)
       latest=${updated%-*}
       latest=${latest:-$current}
+      source_name=$(basename "${url%.git}")
+      head=$(git -C "$pkgdir/$source_name" rev-parse --short HEAD 2>/dev/null || true)
+      [[ -n "$head" ]] && printf 'head:    %s\n' "$head"
     else
+      printf 'type:    release\n'
       repo=${url#https://github.com/}
       repo=${repo%.git}
       latest=$(gh release view -R "$repo" --json tagName -q .tagName)
       latest=${latest#v}
     fi
 
+    printf 'latest:  %s\n' "$latest"
     cmp=$(vercmp "$current" "$latest")
     if [[ "$cmp" -lt 0 ]]; then
-      printf '%s: update available %s -> %s\n' "{{ name }}" "$current" "$latest"
+      printf 'status:  update available (%s -> %s)\n' "$current" "$latest"
     elif [[ "$cmp" -eq 0 ]]; then
-      printf '%s: current (%s)\n' "{{ name }}" "$current"
+      printf 'status:  current\n'
     else
-      printf '%s: local newer %s > %s\n' "{{ name }}" "$current" "$latest"
+      printf 'status:  local newer (%s > %s)\n' "$current" "$latest"
     fi
 
 [group('all')]
 all-latest:
-    for p in {{ packages_dir }}/*; do [ -d "$p" ] && just latest "$(basename "$p")"; done
+    @for p in {{ packages_dir }}/*; do [ -d "$p" ] && just latest "$(basename "$p")"; done
 
 [group('all')]
 all-srcinfo:
