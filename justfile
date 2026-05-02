@@ -123,15 +123,16 @@ aur-clone name:
 
 [group('aur')]
 aur-sync name: (srcinfo name) (aur-clone name)
-    rsync -a --delete \
-      --exclude '.git/' \
-      --exclude 'src/' \
-      --exclude 'pkg/' \
-      --exclude 'cargo-home/' \
-      --exclude '*.pkg.tar.*' \
-      --exclude '*.pkg.tar.*.sig' \
-      --exclude '*.log' \
-      {{ packages_dir }}/{{ name }}/ {{ aur_dir }}/{{ name }}/
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkgdir="{{ packages_dir }}/{{ name }}"
+    aur="{{ aur_dir }}/{{ name }}"
+    find "$aur" -mindepth 1 ! -path "$aur/.git" ! -path "$aur/.git/*" -exec rm -rf {} +
+    while IFS= read -r -d '' path; do
+      rel=${path#"$pkgdir/"}
+      mkdir -p "$aur/$(dirname "$rel")"
+      cp -p "$path" "$aur/$rel"
+    done < <(git ls-files -z -- "$pkgdir")
 
 [group('aur')]
 aur-diff name: (aur-sync name)
