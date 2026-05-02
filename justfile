@@ -54,6 +54,40 @@ clean name:
 status name:
     git status --short {{ packages_dir }}/{{ name }}
 
+[group('pkg')]
+latest name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkgdir="{{ packages_dir }}/{{ name }}"
+    current=$(cd "$pkgdir" && makepkg --printsrcinfo | awk -F ' = ' '/^[[:space:]]*pkgver = / && !v { v=$2 } END { print v }')
+    url=$(cd "$pkgdir" && makepkg --printsrcinfo | awk -F ' = ' '/^[[:space:]]*url = / && !u { u=$2 } END { print u }')
+
+    if [[ "{{ name }}" == *-git ]]; then
+      output=$(cd "$pkgdir" && makepkg -od --noprepare --force 2>&1)
+      printf '%s\n' "$output"
+      updated=$(awk '/^==> Updated version:/ { print $NF }' <<<"$output" | tail -1)
+      latest=${updated%-*}
+      latest=${latest:-$current}
+    else
+      repo=${url#https://github.com/}
+      repo=${repo%.git}
+      latest=$(gh release view -R "$repo" --json tagName -q .tagName)
+      latest=${latest#v}
+    fi
+
+    cmp=$(vercmp "$current" "$latest")
+    if [[ "$cmp" -lt 0 ]]; then
+      printf '%s: update available %s -> %s\n' "{{ name }}" "$current" "$latest"
+    elif [[ "$cmp" -eq 0 ]]; then
+      printf '%s: current (%s)\n' "{{ name }}" "$current"
+    else
+      printf '%s: local newer %s > %s\n' "{{ name }}" "$current" "$latest"
+    fi
+
+[group('all')]
+all-latest:
+    for p in {{ packages_dir }}/*; do [ -d "$p" ] && just latest "$(basename "$p")"; done
+
 [group('all')]
 all-srcinfo:
     for p in {{ packages_dir }}/*; do [ -d "$p" ] && just srcinfo "$(basename "$p")"; done
