@@ -4,7 +4,7 @@ packages_dir := "packages"
 aur_dir := ".aur"
 
 default:
-    @just --list --groups
+    @just --list
 
 [group('info')]
 list:
