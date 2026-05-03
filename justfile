@@ -120,6 +120,7 @@ all-clean:
 aur-clone name:
     mkdir -p {{ aur_dir }}
     if [ ! -d {{ aur_dir }}/{{ name }}/.git ]; then git clone ssh://aur@aur.archlinux.org/{{ name }}.git {{ aur_dir }}/{{ name }}; fi
+    git -C {{ aur_dir }}/{{ name }} checkout -B master
 
 [group('aur')]
 aur-sync name: (srcinfo name) (aur-clone name)
@@ -146,11 +147,11 @@ aur-commit name msg="Update package": (aur-sync name)
 
 [group('aur')]
 aur-push name:
-    git -C {{ aur_dir }}/{{ name }} push
+    git -C {{ aur_dir }}/{{ name }} push origin master
 
 [group('aur')]
 publish name msg="Update package": (check name) (aur-commit name msg)
-    git -C {{ aur_dir }}/{{ name }} push
+    git -C {{ aur_dir }}/{{ name }} push origin master
 
 [group('github')]
 github-create repo visibility="public":
