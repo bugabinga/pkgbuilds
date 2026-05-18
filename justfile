@@ -79,11 +79,20 @@ latest name:
       head=$(git -C "$pkgdir/$source_name" rev-parse --short HEAD 2>/dev/null || true)
       [[ -n "$head" ]] && printf 'head:    %s\n' "$head"
     else
-      printf 'type:    release\n'
-      repo=${url#https://github.com/}
-      repo=${repo%.git}
-      latest=$(gh release view -R "$repo" --json tagName -q .tagName)
-      latest=${latest#v}
+      source_url=$(cd "$pkgdir" && makepkg --printsrcinfo | awk -F ' = ' '/^[[:space:]]*source = / && !s { s=$2 } END { print s }')
+      source_url=${source_url#*::}
+      if [[ "$source_url" == https://crates.io/api/v1/crates/*/*/download ]]; then
+        printf 'type:    crate\n'
+        crate=${source_url#https://crates.io/api/v1/crates/}
+        crate=${crate%%/*}
+        latest=$(python3 -c 'import json, sys, urllib.request; print(json.load(urllib.request.urlopen(f"https://crates.io/api/v1/crates/{sys.argv[1]}"))["crate"]["max_stable_version"])' "$crate")
+      else
+        printf 'type:    release\n'
+        repo=${url#https://github.com/}
+        repo=${repo%.git}
+        latest=$(gh release view -R "$repo" --json tagName -q .tagName)
+        latest=${latest#v}
+      fi
     fi
 
     printf 'latest:  %s\n' "$latest"

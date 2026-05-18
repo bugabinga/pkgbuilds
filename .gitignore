@@ -5,6 +5,7 @@ packages/*/cargo-home/
 packages/*/*.pkg.tar.*
 packages/*/*.pkg.tar.*.sig
 packages/*/*.log
+packages/*/*.tar.gz
 packages/mdslw-bin/mdslw-*
 packages/mdslw-bin/LICENCE-*
 packages/nufmt-git/nufmt/
